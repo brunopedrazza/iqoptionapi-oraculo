@@ -10,9 +10,10 @@ PASSWORD        = 'K5TmnxcAyRTh'            #senha da conta
 EXPIRATION_TIME = 5                         #tempo de expiração
 ACTION          = 'put'                     #call/put
 ACCOUNT         = 'PRACTICE'                #PRACTICE/REAL
-AMMOUNT         = 100                        #entrada em cada operação
-MINIMUN_PAYOUT  = 0.5                      #payout mínimo pra fazer a entrada
-operations      = []                        #lista de operações do dia
+AMMOUNT         = 100                       #entrada em cada operação
+MINIMUN_PAYOUT  = 0.5                       #payout mínimo pra fazer a entrada
+GALES           = 2                         #quantidade de gales
+OPERATIONS      = []                        #lista de operações do dia
 class Operation:
   def __init__(self, asset, hour, minute):
     self.asset = asset
@@ -26,7 +27,7 @@ def read_file():
         asset = line[0]
         hour = int(line[1].split(':')[0])
         minute = int(line[1].split(':')[1])
-        operations.append(Operation(asset, hour, minute))
+        OPERATIONS.append(Operation(asset, hour, minute))
 
 def operate():
     all_assets = API.get_all_open_time()
@@ -36,7 +37,7 @@ def operate():
     actions = []
     expiration_times = []
 
-    for operation in operations:
+    for operation in OPERATIONS:
         server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
         server_hour = int(server_datetime.hour)
         server_minute = int(server_datetime.minute)
@@ -49,7 +50,7 @@ def operate():
         print('Horario da operacao -> {}:{}'.format(operation.hour, operation.minute))
         print(operation.asset,  all_assets['turbo'][operation.asset]['open'], profits[operation.asset]['turbo'] >= MINIMUN_PAYOUT)
         print(server_hour == operation.hour, server_minute == operation.minute)
-        if operation.hour == server_hour and operation.minute == server_minute and all_assets['turbo'][operation.asset]['open'] and profits[operation.asset]['turbo'] >= MINIMUN_PAYOUT:
+        if operation.hour == server_hour and operation.minute == server_minute and all_assets['turbo'][operation.asset]['open'] and all_assets['binary'][operation.asset]['open'] and profits[operation.asset]['turbo'] >= MINIMUN_PAYOUT:
             print('Entrou aqui')
             assets.append(operation.asset)
             actions.append(ACTION)
@@ -68,7 +69,7 @@ def operate():
         print('Operated')
     
     else:
-        print('No operations at this time')
+        print('No OPERATIONS at this time')
 
     print(API.get_balance())
 
