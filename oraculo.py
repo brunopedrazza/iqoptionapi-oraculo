@@ -2,13 +2,13 @@ from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime
 import time
 
-email = 'pedrazzabruno@gmail.com'   #email de login
-password = 'K5TmnxcAyRTh'           #senha da conta
-expiration_time = 5                 #tempo de expiração
-action = 'put'                      #call/put
-account = 'PRACTICE'                #PRACTICE/REAL
-ammount = 100                       #entrada em cada operação
-minimum_payout = 0.5                #payout mínimo pra fazer a entrada
+email           = 'pedrazzabruno@gmail.com' #email de login
+password        = 'K5TmnxcAyRTh'            #senha da conta
+expiration_time = 5                         #tempo de expiração
+action          = 'put'                     #call/put
+account         = 'PRACTICE'                #PRACTICE/REAL
+ammount         = 100                       #entrada em cada operação
+minimum_payout  = 0.5                       #payout mínimo pra fazer a entrada
 
 API = IQ_Option(email, password)
 API.set_max_reconnect(5)
