@@ -24,8 +24,8 @@ def read_file():
         lines = [line.split() for line in sinais_oraculo]
     for line in lines:
         asset = line[0]
-        hour = line[1].split(':')[0]
-        minute= line[1].split(':')[1]
+        hour = int(line[1].split(':')[0])
+        minute = int(line[1].split(':')[1])
         operations.append(Operation(asset, hour, minute))
 
 def operate():
@@ -38,20 +38,25 @@ def operate():
 
     for operation in operations:
         server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
-        server_hour = server_datetime.hour
-        server_minute = server_datetime.minute
+        server_hour = int(server_datetime.hour)
+        server_minute = int(server_datetime.minute)
         if server_minute == 59:
             server_minute = 0
             server_hour = server_hour + 1
         else:
-            server_minute = server_minute + 1 
+            server_minute = server_minute + 1
+        print('Horario do servidor -> {}:{}'.format(server_hour, server_minute))
+        print('Horario da operacao -> {}:{}'.format(operation.hour, operation.minute))
+        print(operation.asset,  all_assets['turbo'][operation.asset]['open'], profits[operation.asset]['turbo'] >= MINIMUN_PAYOUT)
+        print(server_hour == operation.hour, server_minute == operation.minute)
         if operation.hour == server_hour and operation.minute == server_minute and all_assets['turbo'][operation.asset]['open'] and profits[operation.asset]['turbo'] >= MINIMUN_PAYOUT:
+            print('Entrou aqui')
             assets.append(operation.asset)
             actions.append(ACTION)
             ammounts.append(AMMOUNT)
             expiration_times.append(EXPIRATION_TIME)
-            operations.remove(operation)
     
+    print(len(assets))
     if len(assets) > 0:
         while True:
             server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
