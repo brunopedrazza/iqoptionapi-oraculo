@@ -107,6 +107,9 @@ def operate():
     time.sleep(5)
     balance_before = API.get_balance()
     print('Balance before: {}'.format(balance_before))
+    time_sleep = 13
+    print('Sleeping {} minutes...'.format(time_sleep))
+    time.sleep(time_sleep * 60) #13 minutes of sleep after an operation
 
 
 read_file()
