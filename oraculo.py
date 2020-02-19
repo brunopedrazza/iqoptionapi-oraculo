@@ -5,17 +5,20 @@ import time
 import sys
 import schedule
 
-EMAIL           = 'pedrazzabruno@gmail.com' #email de login
-PASSWORD        = 'K5TmnxcAyRTh'            #senha da conta
-EXPIRATION_TIME = 5                         #tempo de expiração
-ACTION          = 'put'                     #call/put
-ACCOUNT         = 'TOURNAMENT'              #PRACTICE/REAL
-AMOUNT          = 35                        #entrada em cada operação
-MINIMUN_PAYOUT  = 65                        #payout mínimo pra fazer a entrada
-GALES           = 1                         #quantidade de gales
-OPERATIONS      = []                        #lista de operações do dia
-ALL_ASSETS      = []                        #lista com todos os ativos
-PROFITS         = []                        #payouts dos ativos
+EMAIL = 'pedrazzabruno@gmail.com'  # email de login
+PASSWORD = 'K5TmnxcAyRTh'  # senha da conta
+CYCLE_DURATION = 5
+EXPIRATION_TIME = 5  # tempo de expiração
+ACTION = 'put'  # call/put
+ACCOUNT = sys.argv[1].upper()  # PRACTICE/REAL/TOURNAMENT
+AMOUNT = 5  # entrada em cada operação
+MINIMUN_PAYOUT = 65  # payout mínimo pra fazer a entrada
+GALES = 1  # quantidade de gales
+OPERATIONS = []  # lista de operações do dia
+ALL_ASSETS = []  # lista com todos os ativos
+PROFITS = []  # payouts dos ativos
+
+
 class Operation:
   def __init__(self, asset, hour, minute):
     self.asset = asset
@@ -24,8 +27,9 @@ class Operation:
     self.option = ''
     self.profit = 0
 
+
 def read_file():
-    with open('files/{}.txt'.format(sys.argv[1])) as sinais_oraculo:
+    with open('files/{}.txt'.format(sys.argv[2])) as sinais_oraculo:
         lines = [line.split() for line in sinais_oraculo]
     for line in lines:
         asset = line[0]
@@ -34,6 +38,11 @@ def read_file():
         OPERATIONS.append(Operation(asset, hour, minute))
 
 def operate():
+    print(datetime.fromtimestamp(API.get_server_timestamp()))
+    ALL_ASSETS = API.get_all_open_time()
+    PROFITS = API.get_all_profit()
+    print('All assets and profits have been picked')
+    print('Operating...')
     amounts = []
     assets = []
     actions = []
@@ -56,16 +65,13 @@ def operate():
                 operation.profit = PROFITS[operation.asset]['turbo'] * 100
 
             if ALL_ASSETS['digital'][operation.asset]['open']:
-                API.subscribe_strike_list(operation.asset,5)
-                while True:
-                    profit_digital = API.get_digital_current_profit(operation.asset,5)
-                    if profit_digital:
-                        break
-                    time.sleep(0.5)
+                API.subscribe_strike_list(operation.asset, 5)
+                profit_digital = API.get_digital_current_profit(
+                        operation.asset, 5)
                 if (profit_digital > operation.profit):
                     operation.option = 'digital'
                     operation.profit = profit_digital
-            
+
             if ACCOUNT == 'TOURNAMENT':
                 if ALL_ASSETS['turbo'][operation.asset]['open']:
                     operation.option = 'turbo'
@@ -81,19 +87,23 @@ def operate():
                     expiration_times.append(EXPIRATION_TIME)
                 else:
                     digitals.append(operation)
-                print('Operation: {} -> {}:{}, Option: {}, Profit: {}'.format(operation.asset, operation.hour, operation.minute, operation.option, operation.profit))
-    
+                print('Operation: {} {}:{} -> Option:{} Payout:{} Amount:{}'.format(operation.asset,
+                                                                                    operation.hour, operation.minute, operation.option, operation.profit, AMOUNT))
+
     id_list = []
 
     if len(digitals) > 0 or len(assets) > 0:
         while True:
-            server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
+            server_datetime = datetime.fromtimestamp(
+                API.get_server_timestamp())
             if (server_datetime.second == 59):
                 if len(assets) > 0:
-                    id_list = API.buy_multi(amounts,assets,actions,expiration_times)
+                    id_list = API.buy_multi(
+                        amounts, assets, actions, expiration_times)
                 if len(digitals) > 0:
                     for digital in digitals:
-                        id = API.buy_digital_spot(digital.asset,AMOUNT,ACTION,EXPIRATION_TIME)
+                        id = API.buy_digital_spot(
+                            digital.asset, AMOUNT, ACTION, EXPIRATION_TIME)
                         id_list.append(id)
                 break
             time.sleep(0.01)
@@ -104,13 +114,8 @@ def operate():
     else:
         print('No operations at this time')
 
-    time.sleep(5)
     balance_before = API.get_balance()
     print('Balance before: {}'.format(balance_before))
-    time_sleep = 13
-    print('Sleeping {} minutes...'.format(time_sleep))
-    time.sleep(time_sleep * 60) #13 minutes of sleep after an operation
-
 
 read_file()
 
@@ -132,22 +137,11 @@ if len(OPERATIONS) > 0:
     print('{} balance: {}'.format(ACCOUNT, API.get_balance()))
 
     while True:
-        if ((datetime.now().minute + 1) % 15) == 0 and datetime.now().second == 20:
-        #if (datetime.now().minute + 1) == 55 and datetime.now().second == 20:
-            while True:
-                try:
-                    ALL_ASSETS = API.get_all_open_time()
-                    PROFITS = API.get_all_profit()
-                    break
-                except:
-                    print('Trying to get all assets and profits again...')
-                    pass
-            print('All assets and profits have been picked')
-        if ((datetime.now().minute + 1) % 15) == 0 and datetime.now().second == 40:
-        #if (datetime.now().minute + 1) == 55 and datetime.now().second == 40:
+        if ((datetime.now().minute + 1) % CYCLE_DURATION) == 0 and datetime.now().second == 45:
+          #if (datetime.now().minute + 1) == 55 and datetime.now().second == 40:
             print('Cycle started')
+            schedule.every(CYCLE_DURATION).minutes.do(operate)
             operate()
-            schedule.every(15).minutes.do(operate)
             break
         time.sleep(1)
 
