@@ -384,6 +384,8 @@ class IQ_Option:
             return "REAL"
         elif self.api.profile.balance_type == 4:
             return "PRACTICE"
+        elif self.api.profile.balance_type == 2:
+            return "TOURNAMENT"
     def reset_practice_balance(self):
         self.api.training_balance_reset_request=None
         self.api.reset_training_balance()
@@ -393,14 +395,16 @@ class IQ_Option:
     def change_balance(self, Balance_MODE):
         real_id = None
         practice_id = None
+        tournament_id = None
         while True:
             try:
-                self.get_balances()
                 for accunt in self.api.profile.balances:
                     if accunt["type"] == 1:
                         real_id = accunt["id"]
                     if accunt["type"] == 4:
                         practice_id = accunt["id"]
+                    if accunt["type"] == 2:
+                        tournament_id = accunt["id"]
                 break
             except:
                 logging.error('**error** change_balance()')
@@ -410,6 +414,8 @@ class IQ_Option:
                 self.api.changebalance(real_id)
             elif Balance_MODE == "PRACTICE":
                 self.api.changebalance(practice_id)
+            elif Balance_MODE == "TOURNAMENT":
+                self.api.changebalance(tournament_id)
             else:
                 logging.error("ERROR doesn't have this mode")
                 exit(1)
@@ -625,9 +631,11 @@ class IQ_Option:
     def check_win_v2(self, id_number):
         while True:
             check, data = self.get_betinfo(id_number)
+            print(check)
             if check:
                 return data["result"]["data"][str(id_number)]["win"]
             time.sleep(self.suspend)
+        print('******************')
 # -------------------get infomation only for binary option------------------------
 
     def get_betinfo(self, id_number):

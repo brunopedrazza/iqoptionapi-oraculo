@@ -9,16 +9,20 @@ EMAIL           = 'pedrazzabruno@gmail.com' #email de login
 PASSWORD        = 'K5TmnxcAyRTh'            #senha da conta
 EXPIRATION_TIME = 5                         #tempo de expiração
 ACTION          = 'put'                     #call/put
-ACCOUNT         = 'PRACTICE'                #PRACTICE/REAL
-AMMOUNT         = 100                       #entrada em cada operação
-MINIMUN_PAYOUT  = 0.5                       #payout mínimo pra fazer a entrada
-GALES           = 2                         #quantidade de gales
+ACCOUNT         = 'TOURNAMENT'              #PRACTICE/REAL
+AMOUNT          = 35                        #entrada em cada operação
+MINIMUN_PAYOUT  = 65                        #payout mínimo pra fazer a entrada
+GALES           = 1                         #quantidade de gales
 OPERATIONS      = []                        #lista de operações do dia
+ALL_ASSETS      = []                        #lista com todos os ativos
+PROFITS         = []                        #payouts dos ativos
 class Operation:
   def __init__(self, asset, hour, minute):
     self.asset = asset
     self.hour = hour
     self.minute = minute
+    self.option = ''
+    self.profit = 0
 
 def read_file():
     with open('files/{}.txt'.format(sys.argv[1])) as sinais_oraculo:
@@ -30,12 +34,11 @@ def read_file():
         OPERATIONS.append(Operation(asset, hour, minute))
 
 def operate():
-    all_assets = API.get_all_open_time()
-    profits = API.get_all_profit()
-    ammounts = []
+    amounts = []
     assets = []
     actions = []
     expiration_times = []
+    digitals = []
 
     for operation in OPERATIONS:
         server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
@@ -46,86 +49,108 @@ def operate():
             server_hour = server_hour + 1
         else:
             server_minute = server_minute + 1
-        print('Horario do servidor -> {}:{}'.format(server_hour, server_minute))
-        print('Horario da operacao -> {}:{}'.format(operation.hour, operation.minute))
-        print(operation.asset,  all_assets['turbo'][operation.asset]['open'], profits[operation.asset]['turbo'] >= MINIMUN_PAYOUT)
-        print(server_hour == operation.hour, server_minute == operation.minute)
-        if operation.hour == server_hour and operation.minute == server_minute and all_assets['turbo'][operation.asset]['open'] and all_assets['binary'][operation.asset]['open'] and profits[operation.asset]['turbo'] >= MINIMUN_PAYOUT:
-            print('Entrou aqui')
-            assets.append(operation.asset)
-            actions.append(ACTION)
-            ammounts.append(AMMOUNT)
-            expiration_times.append(EXPIRATION_TIME)
+
+        if operation.hour == server_hour and operation.minute == server_minute and (ALL_ASSETS['digital'][operation.asset]['open'] or ALL_ASSETS['turbo'][operation.asset]['open']):
+            if ALL_ASSETS['turbo'][operation.asset]['open']:
+                operation.option = 'turbo'
+                operation.profit = PROFITS[operation.asset]['turbo'] * 100
+
+            if ALL_ASSETS['digital'][operation.asset]['open']:
+                API.subscribe_strike_list(operation.asset,5)
+                while True:
+                    profit_digital = API.get_digital_current_profit(operation.asset,5)
+                    if profit_digital:
+                        break
+                    time.sleep(0.5)
+                if (profit_digital > operation.profit):
+                    operation.option = 'digital'
+                    operation.profit = profit_digital
+            
+            if ACCOUNT == 'TOURNAMENT':
+                if ALL_ASSETS['turbo'][operation.asset]['open']:
+                    operation.option = 'turbo'
+                    operation.profit = PROFITS[operation.asset]['turbo'] * 100
+                else:
+                    continue
+
+            if operation.profit >= MINIMUN_PAYOUT:
+                if operation.option == 'turbo':
+                    assets.append(operation.asset)
+                    actions.append(ACTION)
+                    amounts.append(AMOUNT)
+                    expiration_times.append(EXPIRATION_TIME)
+                else:
+                    digitals.append(operation)
+                print('Operation: {} -> {}:{}, Option: {}, Profit: {}'.format(operation.asset, operation.hour, operation.minute, operation.option, operation.profit))
     
-    print(len(assets))
-    if len(assets) > 0:
+    id_list = []
+
+    if len(digitals) > 0 or len(assets) > 0:
         while True:
             server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
             if (server_datetime.second == 59):
-                id_list = API.buy_multi(ammounts,assets,actions,expiration_times)
+                if len(assets) > 0:
+                    id_list = API.buy_multi(amounts,assets,actions,expiration_times)
+                if len(digitals) > 0:
+                    for digital in digitals:
+                        id = API.buy_digital_spot(digital.asset,AMOUNT,ACTION,EXPIRATION_TIME)
+                        id_list.append(id)
                 break
             time.sleep(0.01)
-        print(id_list)
-        print('Operated')
-    
-    else:
-        print('No OPERATIONS at this time')
 
-    print(API.get_balance())
+    if len(id_list) > 0:
+        print(id_list)
+        print('Operated {} times'.format(len(id_list)))
+    else:
+        print('No operations at this time')
+
+    time.sleep(5)
+    balance_before = API.get_balance()
+    print('Balance before: {}'.format(balance_before))
+
 
 read_file()
 
-API = IQ_Option(EMAIL, PASSWORD)
-API.set_max_reconnect(5)
-API.change_balance(ACCOUNT)
+if len(OPERATIONS) > 0:
+    API = IQ_Option(EMAIL, PASSWORD)
+    API.set_max_reconnect(5)
+    API.change_balance(ACCOUNT)
 
-while True:
-    if API.check_connect() == False:
-        print('Not connected.')
-        API.connect()
-    else:
-        print('Connected.')
-        break
+    while True:
+        if API.check_connect() == False:
+            print('Not connected')
+            API.connect()
+        else:
+            print('{} account connected'.format(ACCOUNT))
+            break
 
-    time.sleep(1)
+        time.sleep(1)
 
-print(API.get_balance())
+    print('{} balance: {}'.format(ACCOUNT, API.get_balance()))
 
-while True:
-    if ((datetime.now().minute + 1) % 15) == 0 and datetime.now().second == 40:
-        print('Started')
-        operate()
-        schedule.every(15).minutes.do(operate)
-        break
-    time.sleep(1)
+    while True:
+        if ((datetime.now().minute + 1) % 15) == 0 and datetime.now().second == 20:
+        #if (datetime.now().minute + 1) == 55 and datetime.now().second == 20:
+            while True:
+                try:
+                    ALL_ASSETS = API.get_all_open_time()
+                    PROFITS = API.get_all_profit()
+                    break
+                except:
+                    print('Trying to get all assets and profits again...')
+                    pass
+            print('All assets and profits have been picked')
+        if ((datetime.now().minute + 1) % 15) == 0 and datetime.now().second == 40:
+        #if (datetime.now().minute + 1) == 55 and datetime.now().second == 40:
+            print('Cycle started')
+            operate()
+            schedule.every(15).minutes.do(operate)
+            break
+        time.sleep(1)
 
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
-
-# for type_name, data in ALL_Asset.items():
-#     for Asset,value in data.items():
-#         if (type_name == 'turbo' and value['open'] == True):
-#             print(type_name,Asset,value["open"],profits[Asset][type_name])
-#             if (profits[Asset][type_name] >= minimum_payout):
-#                 Money.append(mult * ammount)
-#                 mult = mult + 1
-#                 ACTION.append("call")
-#                 expirations_mode.append(expiration_time)
-#                 ACTIVES.append(Asset)
-#                 # buy = API.buy(200,Asset,action,expiration_time)
-#                 # success = buy[0]
-#                 # id = buy[1]
-#                 # print(success, id)
-
-# if (len(ACTIVES) > 0):
-#     while True:
-#         server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
-#         hour, minute, second = server_datetime.hour, server_datetime.minute, server_datetime.second
-#         print(hour, minute, second)
-#         if (hour == 12 and minute == 10 and second == 59):
-#             break
-#         time.sleep(0.01)
-# id_list = API.buy_multi(Money,ACTIVES,ACTION,expirations_mode)
-# print(id_list)
+else:
+    print('Operations file is empty.')
