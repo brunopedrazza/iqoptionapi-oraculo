@@ -5,7 +5,7 @@ EMAIL           = 'pedrazzabruno@gmail.com' #email de login
 PASSWORD        = 'K5TmnxcAyRTh'            #senha da conta
 ACCOUNT         = 'PRACTICE'                #PRACTICE/REAL
 
-asset = 'NZDUSD'
+asset = 'EURUSD'
 
 API = IQ_Option(EMAIL, PASSWORD)
 API.set_max_reconnect(5)
@@ -27,15 +27,20 @@ all_assets = API.get_all_open_time()
 profits = API.get_all_profit()
 
 data = 'closed'
-if all_assets['digital'][asset]['open']:
-    API.subscribe_strike_list(asset,5)
-    while True:
-        data = API.get_digital_current_profit(asset,5)
-        if data:
-            break
-        time.sleep(1)
+if all_assets['binary'][asset]['open']:
+    amounts = []
+    assets = []
+    actions = []
+    expiration_times = []
+    digitals = []
+    id_list = []
+    amounts.append(50)
+    assets.append(asset)
+    actions.append('put')
+    expiration_times.append(15)
+    id_list=API.buy_multi(amounts,assets,actions,expiration_times)
 
-
-
-print('{} -> Turbo = {}; Binary = {}; Digital = {}'.format(asset, all_assets['turbo'][asset]['open'], all_assets['binary'][asset]['open'], all_assets['digital'][asset]['open']))
-print('{} -> Turbo = {}; Binary = {}; Digital = {}'.format(asset, profits[asset]['turbo'], profits[asset]['binary'], data))
+    print("check win only one id (id_list[0])")
+    print(API.check_win_v2(id_list[0]))
+    
+    
