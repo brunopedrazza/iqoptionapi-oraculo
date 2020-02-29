@@ -12,9 +12,9 @@ CYCLE_DURATION = 15 # tempo de cada ciclo
 EXPIRATION_TIME = 5  # tempo de expiração
 ACTION = 'put'  # call/put
 ACCOUNT = sys.argv[1].upper()  # PRACTICE/REAL/TOURNAMENT
-AMOUNT = 200  # entrada em cada operação
-MINIMUN_PAYOUT = 74  # payout mínimo pra fazer a entrada
-GALES = 2  # quantidade de gales
+AMOUNT = 100  # entrada em cada operação
+MINIMUN_PAYOUT = 70  # payout mínimo pra fazer a entrada
+GALES = 1  # quantidade de gales
 OPERATIONS = {}  # lista de operações do dia
 ALL_ASSETS = []  # lista com todos os ativos
 INITIAL_BALANCE = 0 # banca inicial
@@ -75,8 +75,9 @@ def single_operation(digital):
                     break
             if win < 0:
                 if gales < GALES:
-                    profit = digital.profit / 100
-                    amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
+                    #profit = digital.profit / 100
+                    #amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
+                    amount_gale = 2.1 * AMOUNT
                     id = API.buy_digital_spot(digital.asset, amount_gale, ACTION, EXPIRATION_TIME)
                     gales = gales + 1
                 else:
@@ -160,10 +161,6 @@ if __name__ == "__main__":
                 time.sleep(time_to_sleep - 10)
                 balance_now = API.get_balance()
                 print(balance_now)
-                # if balance_now >= INITIAL_BALANCE * (1 + STOP_WIN):
-                #     print('Reached stop-win! Exiting program')
-                #     results_file.close()
-                #     sys.exit()
                 now = datetime.now()
                 if now.hour >= last_hour and now.minute > last_minute:
                     print('Last operation! Exiting program')
