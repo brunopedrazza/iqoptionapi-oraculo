@@ -12,26 +12,31 @@ CYCLE_DURATION = 15 # tempo de cada ciclo
 EXPIRATION_TIME = 5  # tempo de expiração
 ACTION = 'put'  # call/put
 ACCOUNT = sys.argv[1].upper()  # PRACTICE/REAL/TOURNAMENT
-AMOUNT = 100  # entrada em cada operação
-MINIMUN_PAYOUT = 70  # payout mínimo pra fazer a entrada
+AMOUNT = 200  # entrada em cada operação
+MINIMUN_PAYOUT = 74  # payout mínimo pra fazer a entrada
 GALES = 1  # quantidade de gales
 OPERATIONS = {}  # lista de operações do dia
 ALL_ASSETS = []  # lista com todos os ativos
 INITIAL_BALANCE = 0 # banca inicial
 STOP_WIN = 0.15 # stop-win
 
-try:
-    API = IQ_Option(EMAIL, PASSWORD)
-    API.set_max_reconnect(5)
-    API.change_balance(ACCOUNT)
-except:
-    print('Error defining API')
+while True:
+    try:
+        print('Trying to connect...')
+        API = IQ_Option(EMAIL, PASSWORD)
+        API.set_max_reconnect(5)
+        API.change_balance(ACCOUNT)
+    except:
+        print('Error defining API, trying again')
+        continue
+    break
     
 while True:
     if API.check_connect() == False:
         print('Not connected')
         API.connect()
     else:
+        print('Connected')
         break
     time.sleep(1)
 results_file = open('results/results_{}.txt'.format(sys.argv[2]),'a+')
@@ -75,9 +80,9 @@ def single_operation(digital):
                     break
             if win < 0:
                 if gales < GALES:
-                    #profit = digital.profit / 100
-                    #amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
-                    amount_gale = 2.1 * AMOUNT
+                    #amount_gale = (-1 * win) * 2.1
+                    profit = digital.profit / 100
+                    amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
                     id = API.buy_digital_spot(digital.asset, amount_gale, ACTION, EXPIRATION_TIME)
                     gales = gales + 1
                 else:
@@ -119,7 +124,7 @@ def operate():
     else:
         minute = str(server_minute)
     
-    print('Operating {}:{}...'.format(str(server_hour), minute))
+    print('Operating {}:{}'.format(str(server_hour), minute))
 
     for operation in OPERATIONS[minute]:
         if int(operation.hour) == server_hour and ALL_ASSETS['digital'][operation.asset]['open']:
@@ -150,10 +155,9 @@ if __name__ == "__main__":
     if len(OPERATIONS) > 0:
         INITIAL_BALANCE = API.get_balance()
         print('Initial {} balance: {}'.format(ACCOUNT, INITIAL_BALANCE))
-
         while True:
             now = datetime.now()
-            if ((now.minute + 1) % CYCLE_DURATION) == 0 and now.second == 40:
+            if ((now.minute + 1) % CYCLE_DURATION) == 0 and (now.second == 39 or now.second == 40):
                 tic = time.perf_counter()
                 operate()
                 toc = time.perf_counter()
@@ -162,7 +166,11 @@ if __name__ == "__main__":
                 balance_now = API.get_balance()
                 print(balance_now)
                 now = datetime.now()
-                if now.hour >= last_hour and now.minute > last_minute:
+                # if balance_now >= 2400:
+                #     print('STOP WIN')
+                #     results_file.close()
+                #     sys.exit()
+                if now.hour == 17:
                     print('Last operation! Exiting program')
                     results_file.close()
                     sys.exit()
