@@ -12,13 +12,13 @@ CYCLE_DURATION = 15 # tempo de cada ciclo
 EXPIRATION_TIME = 5  # tempo de expiração
 ACTION = 'put'  # call/put
 ACCOUNT = sys.argv[1].upper()  # PRACTICE/REAL/TOURNAMENT
-AMOUNT = 200  # entrada em cada operação
+AMOUNT = 100  # entrada em cada operação
 MINIMUN_PAYOUT = 74  # payout mínimo pra fazer a entrada
 GALES = 1  # quantidade de gales
 OPERATIONS = {}  # lista de operações do dia
 ALL_ASSETS = []  # lista com todos os ativos
 INITIAL_BALANCE = 0 # banca inicial
-STOP_WIN = 0.15 # stop-win
+STOP_WIN = int(sys.argv[3]) # stop-win
 
 while True:
     try:
@@ -80,9 +80,9 @@ def single_operation(digital):
                     break
             if win < 0:
                 if gales < GALES:
-                    #amount_gale = (-1 * win) * 2.1
-                    profit = digital.profit / 100
-                    amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
+                    amount_gale = (-1 * win) * 2.1
+                    #profit = digital.profit / 100
+                    #amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
                     id = API.buy_digital_spot(digital.asset, amount_gale, ACTION, EXPIRATION_TIME)
                     gales = gales + 1
                 else:
@@ -154,6 +154,7 @@ if __name__ == "__main__":
     last_hour, last_minute = read_file()
     if len(OPERATIONS) > 0:
         INITIAL_BALANCE = API.get_balance()
+        print('Stop win: {}'.format(STOP_WIN))
         print('Initial {} balance: {}'.format(ACCOUNT, INITIAL_BALANCE))
         while True:
             now = datetime.now()
@@ -166,10 +167,10 @@ if __name__ == "__main__":
                 balance_now = API.get_balance()
                 print(balance_now)
                 now = datetime.now()
-                # if balance_now >= 2400:
-                #     print('STOP WIN')
-                #     results_file.close()
-                #     sys.exit()
+                if balance_now >= STOP_WIN:
+                    print('STOP WIN')
+                    results_file.close()
+                    sys.exit()
                 if now.hour == 17:
                     print('Last operation! Exiting program')
                     results_file.close()
