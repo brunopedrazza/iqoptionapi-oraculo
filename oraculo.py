@@ -4,9 +4,10 @@ from datetime import datetime
 import time
 import sys
 import schedule
+from credentials import Credentials
 
-EMAIL = 'pedrazzabruno@gmail.com'  # email de login
-PASSWORD = 'K5TmnxcAyRTh'  # senha da conta
+EMAIL = Credentials().email  # email de login
+PASSWORD = Credentials().password  # senha da conta
 CYCLE_DURATION = 15 # tempo de cada ciclo
 EXPIRATION_TIME = 5  # tempo de expiração
 ACTION = 'put'  # call/put
@@ -201,7 +202,6 @@ if __name__ == "__main__":
                 time_to_sleep = CYCLE_DURATION * 60 - (toc - tic)
                 print('Sleeping for {} minutes'.format(time_to_sleep/60))
                 time.sleep(time_to_sleep - 15)
-                balance_before = 
             time.sleep(1)
 
     else:

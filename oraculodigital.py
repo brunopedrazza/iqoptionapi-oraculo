@@ -5,20 +5,23 @@ from decimal import Decimal
 from multiprocessing import Process
 import time
 import sys
+from credentials import Credentials
 
-EMAIL = 'pedrazzabruno@gmail.com'  # email de login
-PASSWORD = 'K5TmnxcAyRTh'  # senha da conta
-CYCLE_DURATION = 15 # tempo de cada ciclo
+ACCOUNT = sys.argv[1].upper()  # PRACTICE/REAL/TOURNAMENT
+FILE_NAME = sys.argv[2] # nome do arquivo
+AMOUNT = int(sys.argv[3])  # entrada em cada operação
+GALES = int(sys.argv[4])  # quantidade de gales
+STOP_WIN = int(sys.argv[5])  # stop-win
+
+EMAIL = Credentials().email  # email de login
+PASSWORD = Credentials().password  # senha da conta
+CYCLE_DURATION = 15  # tempo de cada ciclo
 EXPIRATION_TIME = 5  # tempo de expiração
 ACTION = 'put'  # call/put
-ACCOUNT = sys.argv[1].upper()  # PRACTICE/REAL/TOURNAMENT
-AMOUNT = 100  # entrada em cada operação
 MINIMUN_PAYOUT = 74  # payout mínimo pra fazer a entrada
-GALES = 1  # quantidade de gales
 OPERATIONS = {}  # lista de operações do dia
 ALL_ASSETS = []  # lista com todos os ativos
-INITIAL_BALANCE = 0 # banca inicial
-STOP_WIN = int(sys.argv[3]) # stop-win
+INITIAL_BALANCE = 0  # banca inicial
 
 while True:
     try:
@@ -30,7 +33,7 @@ while True:
         print('Error defining API, trying again')
         continue
     break
-    
+
 while True:
     if API.check_connect() == False:
         print('Not connected')
@@ -39,17 +42,19 @@ while True:
         print('Connected')
         break
     time.sleep(1)
-results_file = open('results/results_{}.txt'.format(sys.argv[2]),'a+')
+results_file = open('results/results_{}.txt'.format(FILE_NAME), 'a+')
+
 
 class Operation:
-  def __init__(self, asset, hour, minute):
-    self.asset = asset
-    self.hour = hour
-    self.minute = minute
-    self.profit = 0
+    def __init__(self, asset, hour, minute):
+        self.asset = asset
+        self.hour = hour
+        self.minute = minute
+        self.profit = 0
+
 
 def read_file():
-    with open('files/{}.txt'.format(sys.argv[2])) as sinais_oraculo:
+    with open('files/{}.txt'.format(FILE_NAME)) as sinais_oraculo:
         lines = [line.split() for line in sinais_oraculo]
     for line in lines:
         asset = line[0]
@@ -60,6 +65,7 @@ def read_file():
         OPERATIONS[minute].append(Operation(asset, hour, minute))
     last_operation = lines.pop()[1]
     return int(last_operation.split(':')[0]), int(last_operation.split(':')[1])
+
 
 def single_operation(digital):
     while True:
@@ -76,13 +82,13 @@ def single_operation(digital):
             line = '{} {}:{} '.format(digital.asset, digital.hour, digital.minute)
             while True:
                 check, win = API.check_win_digital_v2(id)
-                if check == True:
+                if check:
                     break
             if win < 0:
                 if gales < GALES:
                     amount_gale = (-1 * win) * 2.1
-                    #profit = digital.profit / 100
-                    #amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
+                    # profit = digital.profit / 100
+                    # amount_gale = int((gales*(AMOUNT/profit) + (gales + 1) * AMOUNT + AMOUNT * profit) / profit)
                     id = API.buy_digital_spot(digital.asset, amount_gale, ACTION, EXPIRATION_TIME)
                     gales = gales + 1
                 else:
@@ -98,12 +104,17 @@ def single_operation(digital):
                 print(line)
                 results_file.write(line + '\n')
                 break
-    
 
 
 def operate():
-    ALL_ASSETS = API.get_all_open_time()
-    
+    while True:
+        try:
+            ALL_ASSETS = API.get_all_open_time()
+        except:
+            print('Error defining getting ALL OPEN TIME, trying again...')
+            continue
+        break
+
     server_datetime = datetime.fromtimestamp(API.get_server_timestamp())
     server_hour = server_datetime.hour
     server_minute = server_datetime.minute
@@ -119,27 +130,31 @@ def operate():
     digitals = []
     minute = ''
 
-    if server_minute >= 0 and server_minute < 10:
+    if 0 <= server_minute < 10:
         minute = '0' + str(server_minute)
     else:
         minute = str(server_minute)
-    
+
     print('Operating {}:{}'.format(str(server_hour), minute))
 
     for operation in OPERATIONS[minute]:
         if int(operation.hour) == server_hour and ALL_ASSETS['digital'][operation.asset]['open']:
-            API.subscribe_strike_list(operation.asset,EXPIRATION_TIME)
+            API.subscribe_strike_list(operation.asset, EXPIRATION_TIME)
             while True:
-                profit_digital = API.get_digital_current_profit(operation.asset,EXPIRATION_TIME)
+                profit_digital = API.get_digital_current_profit(operation.asset, EXPIRATION_TIME)
                 if profit_digital > 0:
                     break
                 time.sleep(1)
-            API.unsubscribe_strike_list(operation.asset,EXPIRATION_TIME)
+            API.unsubscribe_strike_list(operation.asset, EXPIRATION_TIME)
             operation.profit = profit_digital
 
             if operation.profit >= MINIMUN_PAYOUT:
                 digitals.append(operation)
-                print('Operation: {} {}:{} -> Option:Digital Payout:{} Amount:{}'.format(operation.asset, operation.hour, operation.minute, round(Decimal(operation.profit), 2), AMOUNT))
+                print(
+                    'Operation: {} {}:{} -> Option:Digital Payout:{} Amount:{}'.format(operation.asset, operation.hour,
+                                                                                       operation.minute,
+                                                                                       round(Decimal(operation.profit),
+                                                                                             2), AMOUNT))
 
     if len(digitals) > 0:
         procs = []
@@ -149,6 +164,7 @@ def operate():
             proc.start()
     else:
         print('No operations at this time')
+
 
 if __name__ == "__main__":
     last_hour, last_minute = read_file()
